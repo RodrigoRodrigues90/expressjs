@@ -13,7 +13,7 @@ router.use(cors({
 
 router.get("/" , (req, res) =>  res.status(200).send("ok"));
 
-app.get("/api/bling", async (req, res) => {
+router.get("/api/bling", async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
     res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
