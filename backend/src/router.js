@@ -21,7 +21,7 @@ router.get("/api/bling", async (req, res) => {
 
     const apikey = "f2627d4ecd999b2ee1e339147d56760fd7efb06f107b4332733f96ba183fe98dc4b6ae34";
     const outputType = "json";
-    const url = `https://bling.com.br/Api/v2/produtos/${outputType}?apikey=${apikey}`;
+    const url = `https://bling.com.br/Api/v2/produtos/${outputType}?apikey=${apikey}&imagem=S`;
         try {
             const response = await fetch(url);
             const data = await response.json();
