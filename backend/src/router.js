@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const router = express.Router()
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer')
 require('dotenv').config();
 router.use(express.json());
 //=============//
@@ -39,8 +40,40 @@ mongoose.connect(`mongodb+srv://${db_user}:${db_pass}@cluster0.znoo2gk.mongodb.n
     });
 //===============//
 
+
 //==============Rotas===============//
 router.get("/", (req, res) => res.status(200).send("ok"));
+
+//Rota de serviço de envio de email
+router.post("/mailTO", (req, res) => {
+    const dados = req.body;
+    //NODEMAILER CONFIG
+    const transporter = nodemailer.createTransport({
+        service: process.env.MAIL_SERVICE,
+        auth: {
+            user: process.env.MAIL_USER,
+            pass: process.env.MAIL_PASS,
+        },
+    });
+
+    // Configuração do e-mail
+    const emailOptions = {
+        from: dados.email,
+        to: process.env.MAIL_USER,
+        subject: `Nova mensagem do cliente ${dados.nome}`,
+        text: `${dados.mensagem}`,
+    };
+    //Enviar email
+    transporter.sendMail(emailOptions, (error, info) => {
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ success: false, message: 'Falha no servidor. Tente mais tarde \u{1F914}' });
+        } else {
+            return res.status(200).json({ success: true, message: 'Mensagem enviada! \u{1F60A}\u2764' });
+        }
+    });
+
+})
 
 //Rota para carregar os produtos do estoque no Bling
 router.get("/api/bling", async (req, res) => {
@@ -116,25 +149,25 @@ router.post('/auth/register', async (req, res) => {
         res.status(201).json({ msg: "Cadastrado! \u{1F60A}\u2764" })
     } catch (e) {
         console.log(e)
-        res.status(500).json({ msg: "Erro interno, tente mais tarde! \u{1F914}" })
+        res.status(500).json({ msg: "Falha no servidor, tente mais tarde! \u{1F914}" })
     }
 })
 
 //Rota de consulta a usuário no banco de dados
 router.post("/auth/login", async (req, res) => {
     const { email, senha } = req.body;
-    
+
     //verifica se o usuário existe
     const userExists = await User.findOne({ email: email })
     if (!userExists) {
-        return res.status(404).json({ msg: "Email não cadastrado!",status: 404 })
+        return res.status(404).json({ msg: "Email não cadastrado!", status: 404 })
     }
     //============================
-    
+
     //verifica senha
     const password = await bcrypt.compare(senha, userExists.password)
     if (!password) {
-        return res.status(401).json({ msg: "Senha inválida!",status: 401 })
+        return res.status(401).json({ msg: "Senha inválida!", status: 401 })
     }
     //Gera token de autenticação
     try {
@@ -145,10 +178,10 @@ router.post("/auth/login", async (req, res) => {
             },
             secret,
         )
-        res.status(200).json({ msg: token ,status: 200});
+        res.status(200).json({ msg: token, status: 200 });
     } catch (err) {
         console.log(err)
-        res.status(500).json({ msg: "Erro interno, tente mais tarde! \u{1F914} " + err })
+        res.status(500).json({ msg: "Falha no servidor, tente mais tarde! \u{1F914} " + err })
     }
 })
 
