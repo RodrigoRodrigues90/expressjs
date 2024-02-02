@@ -1,8 +1,16 @@
+//===imports===//
 const express = require("express");
 const cors = require('cors');
+const mongoose = require('mongoose');
 const router = express.Router()
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 router.use(express.json());
+//=============//
 
+
+//cors config
 router.use(cors({
     origin: "*",
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
@@ -10,9 +18,31 @@ router.use(cors({
     optionsSuccessStatus: 204,
     allowedHeaders: 'Content-Type,Authorization',
 }));
+//=============//
 
-router.get("/" , (req, res) =>  res.status(200).send("ok"));
+//credentials
+const db_user = process.env.DB_USER
+const db_pass = process.env.DB_PASS
+//==============//
 
+//Models
+const User = require('./models/User');
+//==============//
+
+//MONGODB CONECT
+mongoose.connect(`mongodb+srv://${db_user}:${db_pass}@cluster0.znoo2gk.mongodb.net/?retryWrites=true&w=majority`)
+    .then(() => {
+        console.log("BD CONECTADO")
+    })
+    .catch(error => {
+        console.error("DB CONNECTION ERROR:", error);
+    });
+//===============//
+
+//==============Rotas===============//
+router.get("/", (req, res) => res.status(200).send("ok"));
+
+//Rota para carregar os produtos do estoque no Bling
 router.get("/api/bling", async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
@@ -22,15 +52,17 @@ router.get("/api/bling", async (req, res) => {
     const apikey = "f2627d4ecd999b2ee1e339147d56760fd7efb06f107b4332733f96ba183fe98dc4b6ae34";
     const outputType = "json";
     const url = `https://bling.com.br/Api/v2/produtos/${outputType}?apikey=${apikey}&imagem=S`;
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            res.json(data);
-        } catch (error) {
-            res.status(500).json({ error: 'Erro ao chamar a API ' });
-        }
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao chamar a API ' });
+    }
 
 })
+
+//Rota de Calculo de frete
 router.post('/api/frete', async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
@@ -46,7 +78,7 @@ router.post('/api/frete', async (req, res) => {
         },
         body: JSON.stringify(req.body),
     };
-    
+
     try {
         const response = await fetch('https://www.melhorenvio.com.br/api/v2/me/shipment/calculate', options);
         const data = await response.json();
@@ -56,5 +88,68 @@ router.post('/api/frete', async (req, res) => {
     }
 
 });
+
+//Rota de cadastro de usuário no banco de dados
+router.post('/auth/register', async (req, res) => {
+    const { name, email, telefone, senha } = req.body;
+    //verifica se o usuário existe
+    const userExists = await User.findOne({ email: email })
+    if (userExists) {
+        return res.status(402).json({ msg: "Esse email ja está cadastrado! \u{1F914}" })
+    }
+    //============================
+
+    // // //criptografia da senha
+    const salt = await bcrypt.genSalt(12);
+    const passwordhash = await bcrypt.hash(senha, salt)
+    //============================
+
+    //criar usuário
+    const user = new User({
+        name,
+        email,
+        telefone,
+        password: passwordhash,
+    })
+    try {
+        await user.save()
+        res.status(201).json({ msg: "Cadastrado! \u{1F60A}\u2764" })
+    } catch (e) {
+        console.log(e)
+        res.status(500).json({ msg: "Erro interno, tente mais tarde! \u{1F914}" })
+    }
+})
+
+//Rota de consulta a usuário no banco de dados
+router.post("/auth/login", async (req, res) => {
+    const { email, senha } = req.body;
+    
+    //verifica se o usuário existe
+    const userExists = await User.findOne({ email: email })
+    if (!userExists) {
+        return res.status(404).json({ msg: "Email não cadastrado!",status: 404 })
+    }
+    //============================
+    
+    //verifica senha
+    const password = await bcrypt.compare(senha, userExists.password)
+    if (!password) {
+        return res.status(401).json({ msg: "Senha inválida!",status: 401 })
+    }
+    //Gera token de autenticação
+    try {
+        const secret = process.env.SECRET
+        const token = jwt.sign(
+            {
+                id: userExists._id
+            },
+            secret,
+        )
+        res.status(200).json({ msg: token ,status: 200});
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ msg: "Erro interno, tente mais tarde! \u{1F914} " + err })
+    }
+})
 
 module.exports = router;
