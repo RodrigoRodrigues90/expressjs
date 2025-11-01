@@ -42,8 +42,9 @@ mongoose.connect(`mongodb+srv://${db_user}:${db_pass}@cluster0.znoo2gk.mongodb.n
 
 
 //==============Rotas===============//
-router.get("/", (req, res) => res.status(200).send("ok"));
-
+router.get('/', (req, res) => {
+    res.status(200).json({ status: 'API Online e Funcionando!' });
+});
 //Rota de serviço de envio de email
 router.post("/mailTO", (req, res) => {
     const dados = req.body;
